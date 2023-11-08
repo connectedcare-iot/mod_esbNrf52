@@ -13,9 +13,12 @@
 ******************************************************************************
 */
 
+#include <string.h>
+
 #include "esb_driver.h"
 #include "nrf_drv_rng.h"
 #include "nrf_gpio.h"
+
 
 #include "gpio_rf56_hal.h"
 #include "hardware_information.h"
@@ -25,11 +28,12 @@
 #else
 #include "event_dispatcher.h" 
 #include "key_event.h"
-#include "led_event.h"
+
 #include "persistent_storage.h"
 #include "do_timer.h"
 #endif
-
+ 
+#include "led_event.h"
 #include "io_driver.h"
 #include "nrf_esb.h"
 #include "led_control_api.h"
@@ -598,7 +602,7 @@ bool esb_teachModeHandler(void)
 		{
 			_ledMemoryActive = false;
 			#if !(defined (PROJECT_TOKEN_BUS_MODULE_ENABLED)) && !(defined (_USE_DO_TIMER_MODULE_FOR_ESB)) 
-			led_control_halClrLedActiveBit(LED_FLASHLIGHT_PIN_NUMBER);
+			led_conrol_halSetTeachFeedbackLed(LED_COMMAND_DEACTIVATE);
 			#else
 			esb_send_led_event(LED_LED1_PIN_NUMBER, LED_COMMAND_DEACTIVATE);
 			#endif 
@@ -613,14 +617,14 @@ bool esb_teachModeHandler(void)
 		esb_send_led_event(LED_LED1_PIN_NUMBER, LED_COMMAND_TOGGLE);
 		_ledTimerIndex = ESB_LED_TIMER;
 		#else
-		led_control_halToogleLedActiveBit(LED_FLASHLIGHT_PIN_NUMBER);
+		led_conrol_halSetTeachFeedbackLed(LED_COMMAND_TOGGLE);
 		timer_resetTimer(_ledTimerIndex, 200);
 		#endif 
 	}
 	else if (_teachingLedActive == false)
 	{
 		#if !(defined (PROJECT_TOKEN_BUS_MODULE_ENABLED)) && !(defined (_USE_DO_TIMER_MODULE_FOR_ESB)) 
-		led_control_halClrLedActiveBit(LED_LED1_PIN_NUMBER);
+//		led_conrol_halSetTeachFeedbackLed(LED_COMMAND_DEACTIVATE);
 		#else
 		esb_send_led_event(LED_LED1_PIN_NUMBER, LED_COMMAND_DEACTIVATE);
 		#endif 
@@ -910,7 +914,7 @@ bool esb_teachModeHandler(void)
 		case TEACH_STATE_DONE:
 		{
 			#if !(defined (PROJECT_TOKEN_BUS_MODULE_ENABLED)) && !(defined (_USE_DO_TIMER_MODULE_FOR_ESB)) 
-			led_control_halSetLedActiveBit(LED_FLASHLIGHT_PIN_NUMBER);
+			led_conrol_halSetTeachFeedbackLed(LED_COMMAND_ACTIVATE);
 			#else
 			esb_send_led_event(LED_LED1_PIN_NUMBER, LED_COMMAND_ACTIVATE);
 			#endif 
@@ -927,7 +931,7 @@ bool esb_teachModeHandler(void)
 			if(timeout != 0)
 			{
 			#if !(defined (PROJECT_TOKEN_BUS_MODULE_ENABLED)) && !(defined (_USE_DO_TIMER_MODULE_FOR_ESB)) 
-				led_control_halClrLedActiveBit(LED_FLASHLIGHT_PIN_NUMBER);
+				led_conrol_halSetTeachFeedbackLed(LED_COMMAND_DEACTIVATE);
 //				nrf_gpio_pin_write(FCT_LED,OFF);
 			#else
 				esb_send_led_event(LED_LED1_PIN_NUMBER, LED_COMMAND_DEACTIVATE);
@@ -973,9 +977,10 @@ void esb_init(void)
 
 	uint32_t errCode = nrf_drv_rng_init(&defaultConfiguration);
 	#ifdef NRF52810_XXAA 
-	if(errCode != NRF_ERROR_MODULE_ALREADY_INITIALIZED)
+	if(errCode == NRF_ERROR_MODULE_ALREADY_INITIALIZED)
+	hal_systemReset(); 
 	#endif 
-		APP_ERROR_CHECK(errCode);
+	APP_ERROR_CHECK(errCode);
 	
 	#ifndef PROJECT_TOKEN_BUS_MODULE_ENABLED
 	loadAddressConfiguration(&_rfCommunicationData);
@@ -1267,7 +1272,7 @@ static void esbEventHandler(nrf_esb_evt_t const * event)
 			if (_teachingLedActive == false)
 			{
 				#if !(defined (PROJECT_TOKEN_BUS_MODULE_ENABLED)) && !(defined (_USE_DO_TIMER_MODULE_FOR_ESB)) 
-				led_control_halSetLedActiveBit(LED_LED1_PIN_NUMBER);
+//				led_conrol_halSetRfFeedbackLed(LED_COMMAND_ACTIVATE);
 				#else
 				esb_send_led_event(LED_LED1_PIN_NUMBER, LED_COMMAND_ACTIVATE);
 				#endif 
