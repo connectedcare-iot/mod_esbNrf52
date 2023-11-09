@@ -15,7 +15,7 @@
 
 #include <string.h>
 
-#include "esb_driver.h"
+#include "esb_hsTransmitter.h"
 #include "nrf_drv_rng.h"
 #include "nrf_gpio.h"
 

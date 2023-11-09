@@ -28,7 +28,7 @@
 
 #include "io_driver.h"
 #include "esb_timer_driver.h"
-#include "esb_driver.h"
+#include "esb_hsTransmitter.h"
 
 #include "hardware_information.h"
 #include "keycodes.h"
