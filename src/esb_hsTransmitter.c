@@ -32,40 +32,14 @@
 #include "persistent_storage.h"
 #include "do_timer.h"
 #endif
- 
+
+#include "esb_constants.h"
+
 #include "led_event.h"
 #include "io_driver.h"
 #include "nrf_esb.h"
 #include "led_control_api.h"
 
-
-#define RF_LENGTH_OF_ADDRESS               4       ///< @brief  RF Adress 
-#define RF_LENGHT_OF_PRE_ADDRESS           1       ///< @brief  RF Pre Adress 
-#define RF_PREADDRESS_MASK                 0xF0    ///< @brief  RF Pre Adress Mask  
-#define RF_PIPE_MASK                       0x0F    ///< @brief  RF Pipe Mask
-
-#define RF_MAX_CHANNEL_NUMBER              84      ///< @brief  RF Adress max Channel Number
-#define RF_MIN_CHANNEL_NUMBER              0       ///< @brief  RF Adress min Channel Number
-
-#define ESB_FLAG_NONE                      0x00    ///< @brief  ESB Flag not set
-#define ESB_FLAG_ACK                       0x01    ///< @brief  ESB Flag for TX success/ACK
-#define ESB_FLAG_NACK                      0x02    ///< @brief  ESB Flag for TX failed/nACK
-#define ESB_FLAG_DATA                      0x04    ///< @brief  ESB Flag for received data
-
-#define RF_ESB_CMD                         2       ///< @brief  RF ESB cmd byte
-
-#define RF_ESB_HEADER_LENGTH               3       ///< @brief  RF ESB Header length
-#define RF_NUMBER_OF_USED_PIPES            6       ///< @brief  RF Number of used pipes 
-#define RF_KEYCODE_TRANSMIT_PIPE           4       ///< @brief  RF Keycode for tramited pipe
-#define RF_KEYCODE_ALTERNATE_TRANSMIT_PIPE 1       ///< @brief  RF Keycode for alternate pipe 
-
-
-
-#define RF_TEACH_BLINK_INTERVAL            2       ///< @brief  blink interval 
-#define RF_TEACH_BLINK_TIME                2       ///< @brief  blink time
-
-#define LENGHT_OF_BYTE                     8       ///< @brief  esb byte length
-#define ESB_GET_BYTE(rawData, byteNumber) ((rawData >> (LENGHT_OF_BYTE * byteNumber)) & 0xFF)
 
 typedef struct
 {
@@ -536,9 +510,11 @@ bool esb_stopTeaching(void)
  ******************************************************************************/
 
 #define TEACH_TIMEOUT     500
+#define TEACH_DELAY       500
 
 bool esb_teachModeHandler(void)
 {
+	static uint16_t delay = SYS_TICK_TIME_BASE_5MS * TEACH_DELAY; 
 	static uint8_t    pipeIndex = 0;
 	static uint32_t   channelIndex = 0;
 	static rf_frame_t frame;
@@ -642,7 +618,7 @@ bool esb_teachModeHandler(void)
 				break;
 			}
 			led_control_halClrLedActiveBit(LED_BACKLIGHT_PIN_NUMBER);
-			
+			delay = SYS_TICK_TIME_BASE_5MS * TEACH_DELAY; 
 			timeout = TEACH_TIMEOUT; 
 			pipeIndex    = 0;
 			channelIndex = RF_MIN_CHANNEL_NUMBER;
@@ -913,17 +889,25 @@ bool esb_teachModeHandler(void)
 			
 		case TEACH_STATE_DONE:
 		{
-			#if !(defined (PROJECT_TOKEN_BUS_MODULE_ENABLED)) && !(defined (_USE_DO_TIMER_MODULE_FOR_ESB)) 
-			led_conrol_halSetTeachFeedbackLed(LED_COMMAND_ACTIVATE);
-			#else
-			esb_send_led_event(LED_LED1_PIN_NUMBER, LED_COMMAND_ACTIVATE);
-			#endif 
+			if(delay == SYS_TICK_TIME_BASE_5MS * TEACH_DELAY)
+			{
+				#if !(defined (PROJECT_TOKEN_BUS_MODULE_ENABLED)) && !(defined (_USE_DO_TIMER_MODULE_FOR_ESB)) 
+				led_conrol_halSetTeachFeedbackLed(LED_COMMAND_ACTIVATE);
+				#else
+				esb_send_led_event(LED_LED1_PIN_NUMBER, LED_COMMAND_ACTIVATE);
+				#endif 
 
-			io_setFlashBacklight(RF_TEACH_BLINK_INTERVAL, RF_TEACH_BLINK_TIME << 1); 
-			teachStatus = TEACH_STATE_IDLE;
-			_useDefaultAddress = false; 
+				io_setFlashBacklight(RF_TEACH_BLINK_INTERVAL, RF_TEACH_BLINK_TIME << 1); 
+			}
+			else if(delay > 0)
+				delay--;
+			else
+			{
+				teachStatus = TEACH_STATE_IDLE;
+				_useDefaultAddress = false; 
 
-			_communicationPartnerAwake = true; 
+				_communicationPartnerAwake = true; 
+			}
 		} break;
 
 		case TEACH_STATE_RESET:
@@ -977,10 +961,14 @@ void esb_init(void)
 
 	uint32_t errCode = nrf_drv_rng_init(&defaultConfiguration);
 	#ifdef NRF52810_XXAA 
+	#ifdef _TEACH_RESET
 	if(errCode == NRF_ERROR_MODULE_ALREADY_INITIALIZED)
-	hal_systemReset(); 
+		hal_systemReset(); 
+	#else
+	if(errCode != NRF_ERROR_MODULE_ALREADY_INITIALIZED)
 	#endif 
-	APP_ERROR_CHECK(errCode);
+	#endif 
+		APP_ERROR_CHECK(errCode);
 	
 	#ifndef PROJECT_TOKEN_BUS_MODULE_ENABLED
 	loadAddressConfiguration(&_rfCommunicationData);

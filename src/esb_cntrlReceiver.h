@@ -1,6 +1,11 @@
 /*****************************************************************************************************************
  * Commands (Funkübertragung)
  *****************************************************************************************************************/
+ #ifndef __ESB_CONTROL_RECEIVER_H__
+ #define __ESB_CONTROL_RECEIVER_H__
+
+#include "rf_member_manager.h" 
+
 #define RF_MODULID          0x01  // Identifizierung
 #define RF_DATA             0x02  // Datenübertragung
 #define RF_BUTTON           0x03  // Tastenstatus des Handsenders
@@ -15,16 +20,12 @@
 
 enum rfMode_t
 {
-	rfMode_normal = 0,
-	rfMode_teach_tx = 1,
-	rfMode_teach_rx = 2,
-	rfMode_teach_change_channel = 3,
-#ifndef NO_SOCKET_SUPPORT
-	rfMode_teach_pending = 4,
-	rfMode_tx = 5
-#else
-	rfMode_teach_pending = 4
-#endif
+	RF_MODE_NORMAL = 0,
+	RF_MODE_TEACH_TX = 1,
+	RF_MODE_TEACH_RX = 2,
+	RF_MODE_TEACH_CHANGE_CHANNEL = 3,
+	RF_MODE_TEACH_PENDING = 4,
+	RF_MODE_TX = 5
 };
 extern enum rfMode_t rfMode;
 
@@ -40,6 +41,6 @@ void esb_teachmode_stop(void);
 
 extern uint32_t esb_keyCode;
 
-#include "rf_member_manager.h"
+extern member_type_t esbAddress;
 
-extern member_type_t	esbAddress;
+#endif 

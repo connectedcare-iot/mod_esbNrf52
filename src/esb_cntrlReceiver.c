@@ -1,21 +1,22 @@
 #include <stdint.h>
 #include <string.h>
 #include <app_error.h>
-#include <pstorage_platform.h>
 #include <nrf.h>
 #include <nrf_esb.h>
 #include <nrf_soc.h>
 
-#include "bt_nRF51822Rev3_lib.h"
-#include "timer.h"
-#include "watchdog.h"
-#include "esb.h"
-#include "ble_events.h"
+//#include "bt_nRF51822Rev3_lib.h"
+//#include "timer.h"
+//#include "watchdog.h"
+#include "esb_cntrlReceiver.h"
+//#include "ble_events.h"
 #include "dp2.h"
-#include "misc.h"
+//#include "misc.h"
 
-#ifndef ESB_PRESENT
-#error ESB_PRESENT needs to be defined!
+#include "esb_constants.h" 
+
+#ifndef __USE_ESB_PART 
+#error __USE_ESB_PART  needs to be defined!
 // ESB_PRESENT is used both by our library and also by the Nordic libraries.
 #endif
 
@@ -72,30 +73,33 @@
 
 #define RF_EMPTY_FRAME  0x00 ///<	This 'command' is used for the tx_frame to mark it as empty. The frame will no be send if the command-field is set to this value.
 
-#define MAX_RF_CHANNEL   84  // höchster beim Teach-Vorgang zu durchsuchender Funk-Kanal (vergleiche auch MAX_CHANNEL)
+#define MAX_RF_CHANNEL   RF_MAX_CHANNEL_NUMBER  // hï¿½chster beim Teach-Vorgang zu durchsuchender Funk-Kanal (vergleiche auch MAX_CHANNEL)
 #define MIN_RF_CHANNEL    0  // niedrigster beim Teach-Vorgang zu durchsuchender Funk-Kanal (vergleiche auch MIN_CHANNEL)
 #define MIN_CHANNEL       3  // niedrigster Kanal der verwendet werden soll. (vergleiche auch MIN_RF_CHANNEL)
-#define MAX_CHANNEL      78  // höchster Kanal der verwendet werden soll. (vergleiche auch MAX_RF_CHANNEL)
-                             // (Die Kanäle 79 und 80 wurden f?r FCC entfernt.)
+#define MAX_CHANNEL      78  // hï¿½chster Kanal der verwendet werden soll. (vergleiche auch MAX_RF_CHANNEL)
+                             // (Die Kanï¿½le 79 und 80 wurden f?r FCC entfernt.)
 #define KEY_CODE_TIMEOUT 30  // ca. 300 ms. - default is 50 -> 500ms
 
-union Frame
-{
-	__packed struct
+	typedef struct
 	{
 		unsigned char length;   // length of datafield - max: 29 = NRF_ESB_CONST_MAX_PAYLOAD_LENGTH - 3
 		unsigned char sequence; // reserved for future use...
 		unsigned char command;
-		unsigned char data[NRF_ESB_CONST_MAX_PAYLOAD_LENGTH - 3];
-	} packet;
-	__packed unsigned char rawData[NRF_ESB_CONST_MAX_PAYLOAD_LENGTH];
+		unsigned char data[NRF_ESB_MAX_PAYLOAD_LENGTH - 3];
+	} __attribute__((packed)) packet_t;
+
+
+union Frame
+{
+	packet_t packet; 
+	unsigned char rawData[NRF_ESB_MAX_PAYLOAD_LENGTH];
 };
 
 /*****************************************************************************************************************
  * global variables
  *****************************************************************************************************************/
 
-uint32_t 						timeslotRunning  = 2;
+uint32_t            timeslotRunning  = 2;
 
 uint32_t            esb_keyCode      = 0;
 static uint32_t     esb_keyCodeTimer = 0;
@@ -104,7 +108,7 @@ static int_fast8_t   addrHasChanged   = 0;
 member_type_t        esbAddress;
 static uint_fast16_t teachModeTimer = 0;
 
-enum rfMode_t rfMode = rfMode_normal;
+enum rfMode_t rfMode = RF_MODE_NORMAL;
 
 static uint32_t       m_total_timeslot_length = 0;
 static signed int     esbStop = 0;
@@ -139,7 +143,7 @@ extern volatile ble_flags_t m_ble_flags;
 static nrf_radio_request_t	radioRequestOptionsStandBy =
 {
 	.request_type = NRF_RADIO_REQ_TYPE_NORMAL,
-	.params.normal.hfclk = NRF_RADIO_HFCLK_CFG_FORCE_XTAL,
+	.params.normal.hfclk = NRF_RADIO_HFCLK_CFG_NO_GUARANTEE,
 	.params.normal.priority = NRF_RADIO_PRIORITY_NORMAL,
 	.params.normal.distance_us = TS_STANDBY_DELAY_US,
 	.params.normal.length_us = TS_LEN_US,
@@ -149,7 +153,7 @@ static nrf_radio_request_t	radioRequestOptionsStandBy =
 static nrf_radio_request_t	radioRequestOptions =
 {
 	.request_type               = NRF_RADIO_REQ_TYPE_EARLIEST,
-	.params.earliest.hfclk      = NRF_RADIO_HFCLK_CFG_FORCE_XTAL,
+	.params.earliest.hfclk      = NRF_RADIO_HFCLK_CFG_NO_GUARANTEE,
 	.params.earliest.length_us  = TS_LEN_US,
 	.params.earliest.priority   = NRF_RADIO_PRIORITY_NORMAL,
 	.params.earliest.timeout_us = NRF_RADIO_EARLIEST_TIMEOUT_MAX_US
@@ -190,15 +194,7 @@ void RADIO_IRQHandler(void);
  * functions
  *****************************************************************************************************************/
 
-void esb_teachmode_start(void)
-{
-	if(rfMode == rfMode_normal)
-	{
-		rfMode = rfMode_teach_pending;
-		teachModeTimer = ESB_TEACHMODE_TIMEOUT;
-		ble_rf_teach_mode_event(true);
-	}
-}
+
 
 void esb_teachmode_checkTimeout(void)
 {
@@ -208,62 +204,37 @@ void esb_teachmode_checkTimeout(void)
 
 void esb_teachmode_stop(void)
 {
-#ifndef NO_SOCKET_SUPPORT
-	if((rfMode != rfMode_normal) && (rfMode != rfMode_tx) && !m_ble_flags.central_connected && (m_feedback_error_count == 0)) 
-#else
-	if(rfMode != rfMode_normal)
-#endif
+//#ifndef NO_SOCKET_SUPPORT
+//	if((rfMode != rfMode_normal) && (rfMode != rfMode_tx) && !m_ble_flags.central_connected && (m_feedback_error_count == 0)) 
+//#else
+	if(rfMode != RF_MODE_NORMAL)
+//#endif
 	{
-		rfMode = rfMode_normal;
-		ble_esb_led_off_event();
-		ble_rf_teach_mode_event(false);
+		rfMode = RF_MODE_NORMAL;
+//		ble_esb_led_off_event();
+//		ble_rf_teach_mode_event(false);
 	};
 	m_forced_teach = false;
 }
 
-void esb_init(bool start_tech_mode)
+void esb_init_receiver(bool start_tech_mode)
 {
-	int err_code;
-	err_code = rf_member_manager_init();
-	APP_ERROR_CHECK(err_code);
+	ret_code_t retCode;
+	bool       eraseBonds = false;
 	
-	err_code = member_info_load_from_flash(&esbAddress);
-	APP_ERROR_CHECK(err_code);
+	// Init BLE/ESB library
+	ble_lib_config_t const config = {
+		.eventHandler    = bleLibEventHandler,
+		.keycodeHandler  = dataHandler_bleEsbKeycodeEventHandler,
+		.feedbackHandler = feedbackEventHandler,
+		.dataHandler     = dataHandler_bleEsbDataEventHandler,
+		.eraseBonds      = eraseBonds,
+		.eraseDeviceName = eraseBonds
+	};
 	
-	esbStop = 0;
-	tx_frame.packet.command = RF_EMPTY_FRAME;
-	
-#if (MIN_RF_CHANNEL > 0)
-	if ((esbAddress.channel < MIN_RF_CHANNEL)
-	 || (esbAddress.channel > MAX_RF_CHANNEL))
-#else
-	if (esbAddress.channel > MAX_RF_CHANNEL)
-#endif
-	{
-		memset(&esbAddress, 0xff, sizeof(esbAddress));
-		esbAddress.channel    = defaultChannel;
-		esbAddress.addr       = defaultAddr;
-		esbAddress.addrPrefix = defaultAddrPrefix;
-		esbAddress.pipe       = defaultPipe;
+	retCode = bleLib_init(&config);
+	VERIFY_SUCCESS(retCode);
 	}
-	
-	// Using avilable interrupt handlers for interrupt level management
-	// These can be any available IRQ as we're not using any of the hardware,
-	// simply triggering them through software
-	sd_nvic_ClearPendingIRQ(TIMESLOT_END_IRQn);
-	sd_nvic_SetPriority(TIMESLOT_END_IRQn, TIMESLOT_END_IRQPriority);
-	sd_nvic_EnableIRQ(TIMESLOT_END_IRQn);
-
-	sd_nvic_ClearPendingIRQ(TIMESLOT_BEGIN_IRQn);
-	sd_nvic_SetPriority(TIMESLOT_BEGIN_IRQn, TIMESLOT_BEGIN_IRQPriority);
-	sd_nvic_EnableIRQ(TIMESLOT_BEGIN_IRQn);
-
-	sd_radio_session_open(radio_signal_callback);
-	sd_radio_request(&radioRequestOptions);
-	
-	// Startup in teach-mode
-	if(start_tech_mode)
-		esb_teachmode_start();
 };
 
 void esb_generateRandomAddress(void)
@@ -328,144 +299,144 @@ void esb_sys_event_hanlder(uint32_t sys_evt)
 
 /**@brief   Function for handling timeslot events.
  */
-nrf_radio_signal_callback_return_param_t* radio_signal_callback(uint8_t signal_type)
-{
-	if(esbStop != 0)
-	{
-		return &callbackReturnStopESB;
-	};
-	
-	// NOTE: This callback runs at lower-stack priority (the highest priority possible).
-	switch (signal_type)
-	{
-		case NRF_RADIO_CALLBACK_SIGNAL_TYPE_START:
-			// TIMER0 is pre-configured for 1Mhz.
-			NRF_TIMER0->TASKS_STOP          = 1;
-			NRF_TIMER0->TASKS_CLEAR         = 1;
-			NRF_TIMER0->MODE                = (TIMER_MODE_MODE_Timer << TIMER_MODE_MODE_Pos);
-			NRF_TIMER0->EVENTS_COMPARE[0]   = 0;
-			NRF_TIMER0->EVENTS_COMPARE[1]   = 0;
-			NRF_TIMER0->EVENTS_COMPARE[2]   = 0;
-			NRF_TIMER0->INTENSET            = (TIMER_INTENSET_COMPARE0_Msk | TIMER_INTENSET_COMPARE1_Msk | TIMER_INTENSET_COMPARE2_Msk);
-			NRF_TIMER0->CC[0]               = (TS_LEN_US - TS_SAFETY_MARGIN_US);
-			NRF_TIMER0->CC[1]               = (TS_LEN_US - TS_EXTEND_MARGIN_US);
-			NRF_TIMER0->CC[2]               = (TS_LEN_US - TS_REQ_AND_END_MARGIN_US);
-			NRF_TIMER0->BITMODE             = (TIMER_BITMODE_BITMODE_24Bit << TIMER_BITMODE_BITMODE_Pos);
-			NRF_TIMER0->TASKS_START         = 1;
+//nrf_radio_signal_callback_return_param_t* radio_signal_callback(uint8_t signal_type)
+//{
+//	if(esbStop != 0)
+//	{
+//		return &callbackReturnStopESB;
+//	};
+//	
+//	// NOTE: This callback runs at lower-stack priority (the highest priority possible).
+//	switch (signal_type)
+//	{
+//		case NRF_RADIO_CALLBACK_SIGNAL_TYPE_START:
+//			// TIMER0 is pre-configured for 1Mhz.
+//			NRF_TIMER0->TASKS_STOP          = 1;
+//			NRF_TIMER0->TASKS_CLEAR         = 1;
+//			NRF_TIMER0->MODE                = (TIMER_MODE_MODE_Timer << TIMER_MODE_MODE_Pos);
+//			NRF_TIMER0->EVENTS_COMPARE[0]   = 0;
+//			NRF_TIMER0->EVENTS_COMPARE[1]   = 0;
+//			NRF_TIMER0->EVENTS_COMPARE[2]   = 0;
+//			NRF_TIMER0->INTENSET            = (TIMER_INTENSET_COMPARE0_Msk | TIMER_INTENSET_COMPARE1_Msk | TIMER_INTENSET_COMPARE2_Msk);
+//			NRF_TIMER0->CC[0]               = (TS_LEN_US - TS_SAFETY_MARGIN_US);
+//			NRF_TIMER0->CC[1]               = (TS_LEN_US - TS_EXTEND_MARGIN_US);
+//			NRF_TIMER0->CC[2]               = (TS_LEN_US - TS_REQ_AND_END_MARGIN_US);
+//			NRF_TIMER0->BITMODE             = (TIMER_BITMODE_BITMODE_24Bit << TIMER_BITMODE_BITMODE_Pos);
+//			NRF_TIMER0->TASKS_START         = 1;
 
-			NRF_RADIO->POWER                = (RADIO_POWER_POWER_Enabled << RADIO_POWER_POWER_Pos);
+//			NRF_RADIO->POWER                = (RADIO_POWER_POWER_Enabled << RADIO_POWER_POWER_Pos);
 
-			m_total_timeslot_length = TS_LEN_US;
+//			m_total_timeslot_length = TS_LEN_US;
 
-			//sd_nvic_EnableIRQ(TIMER0_IRQn);
-			NVIC_EnableIRQ(TIMER0_IRQn);
+//			//sd_nvic_EnableIRQ(TIMER0_IRQn);
+//			NVIC_EnableIRQ(TIMER0_IRQn);
 
-			// ESB packet receiption and transmission are synchronized at the beginning of timeslot extensions. 
-			// Ideally we would also transmit at the beginning of the initial timeslot, not only extensions,
-			// but this is to simplify a bit. 
-			//sd_nvic_SetPendingIRQ(TIMESLOT_BEGIN_IRQn);
-			NVIC_SetPendingIRQ(TIMESLOT_BEGIN_IRQn);
-			break;
+//			// ESB packet receiption and transmission are synchronized at the beginning of timeslot extensions. 
+//			// Ideally we would also transmit at the beginning of the initial timeslot, not only extensions,
+//			// but this is to simplify a bit. 
+//			//sd_nvic_SetPendingIRQ(TIMESLOT_BEGIN_IRQn);
+//			NVIC_SetPendingIRQ(TIMESLOT_BEGIN_IRQn);
+//			break;
 
-		case NRF_RADIO_CALLBACK_SIGNAL_TYPE_TIMER0:
-			if(NRF_TIMER0->EVENTS_COMPARE[0] &&
-			  (NRF_TIMER0->INTENSET & (TIMER_INTENSET_COMPARE0_Enabled << TIMER_INTENCLR_COMPARE0_Pos)))
-			{
-				NRF_TIMER0->EVENTS_COMPARE[0] = 0;
-			
-				// This is the "timeslot is about to end" timeout
+//		case NRF_RADIO_CALLBACK_SIGNAL_TYPE_TIMER0:
+//			if(NRF_TIMER0->EVENTS_COMPARE[0] &&
+//			  (NRF_TIMER0->INTENSET & (TIMER_INTENSET_COMPARE0_Enabled << TIMER_INTENCLR_COMPARE0_Pos)))
+//			{
+//				NRF_TIMER0->EVENTS_COMPARE[0] = 0;
+//			
+//				// This is the "timeslot is about to end" timeout
 
-				// Disabling ESB is done in a lower interrupt priority 
-				NVIC_SetPendingIRQ(TIMESLOT_END_IRQn);
-		 
-				// Return with no action request. request_and_end is sent later
-				return &callbackReturnNoAction;
-			}
+//				// Disabling ESB is done in a lower interrupt priority 
+//				NVIC_SetPendingIRQ(TIMESLOT_END_IRQn);
+//		 
+//				// Return with no action request. request_and_end is sent later
+//				return &callbackReturnNoAction;
+//			}
 
-			if(NRF_TIMER0->EVENTS_COMPARE[1] &&
-			  (NRF_TIMER0->INTENSET & (TIMER_INTENSET_COMPARE1_Enabled << TIMER_INTENCLR_COMPARE1_Pos)))
-			{
-				NRF_TIMER0->EVENTS_COMPARE[1] = 0;
-			
-				// This is the "try to extend timeslot" timeout
-			
-				if((m_total_timeslot_length < (128000000UL - 1UL - TX_LEN_EXTENSION_US))
-#if TS_STANDBY_DELAY_US != 0
-				    && ((rfMode != rfMode_normal) || (esbRadioActiveTimer != 0)) // if there is no communication enter stand-by mode -> thus do not try to extend this timeslot...
-#endif
-				    && (rfMode != rfMode_teach_pending)) // If rfMode is rfMode_teach_pending do not extend but restart into teach mode...
-				{
-					// Request timeslot extension if total length does not exceed 128 seconds
-					return &callbackReturnExtend;
-				}
-				else
-				{
-					// Return with no action request
-					return &callbackReturnNoAction;
-				}
-			}
-		
-			if(NRF_TIMER0->EVENTS_COMPARE[2] &&
-			  (NRF_TIMER0->INTENSET & (TIMER_INTENSET_COMPARE2_Enabled << TIMER_INTENCLR_COMPARE2_Pos)))
-			{
-				NRF_TIMER0->EVENTS_COMPARE[2] = 0;
-#if TS_STANDBY_DELAY_US != 0
-				if(esbRadioActiveTimer == 0)
-				{
-					// if there is no ongoing communication turn off the receiver to go into sleep mode... - request the next timeslot after a short delay.
-					callbackReturnScheduleNext.params.request.p_next = &radioRequestOptionsStandBy;
-				} 
-				else
-#endif
-				{
-					// if there is ongoing communication request the next timeslot as soon as possible...
-					callbackReturnScheduleNext.params.request.p_next = &radioRequestOptions;
-			
-					if(rfMode != rfMode_normal)
-					{
-						radioRequestOptions.params.earliest.priority = NRF_RADIO_PRIORITY_HIGH;
-					}
-					else
-					{
-						radioRequestOptions.params.earliest.priority = NRF_RADIO_PRIORITY_NORMAL;
-					};
-				};
-				// Schedule next timeslot
-				return &callbackReturnScheduleNext;
-			}
-			break;
-		
-		case NRF_RADIO_CALLBACK_SIGNAL_TYPE_RADIO:
-			// Call the esb IRQHandler
-			RADIO_IRQHandler();
-			break;
+//			if(NRF_TIMER0->EVENTS_COMPARE[1] &&
+//			  (NRF_TIMER0->INTENSET & (TIMER_INTENSET_COMPARE1_Enabled << TIMER_INTENCLR_COMPARE1_Pos)))
+//			{
+//				NRF_TIMER0->EVENTS_COMPARE[1] = 0;
+//			
+//				// This is the "try to extend timeslot" timeout
+//			
+//				if((m_total_timeslot_length < (128000000UL - 1UL - TX_LEN_EXTENSION_US))
+//#if TS_STANDBY_DELAY_US != 0
+//				    && ((rfMode != rfMode_normal) || (esbRadioActiveTimer != 0)) // if there is no communication enter stand-by mode -> thus do not try to extend this timeslot...
+//#endif
+//				    && (rfMode != rfMode_teach_pending)) // If rfMode is rfMode_teach_pending do not extend but restart into teach mode...
+//				{
+//					// Request timeslot extension if total length does not exceed 128 seconds
+//					return &callbackReturnExtend;
+//				}
+//				else
+//				{
+//					// Return with no action request
+//					return &callbackReturnNoAction;
+//				}
+//			}
+//		
+//			if(NRF_TIMER0->EVENTS_COMPARE[2] &&
+//			  (NRF_TIMER0->INTENSET & (TIMER_INTENSET_COMPARE2_Enabled << TIMER_INTENCLR_COMPARE2_Pos)))
+//			{
+//				NRF_TIMER0->EVENTS_COMPARE[2] = 0;
+//#if TS_STANDBY_DELAY_US != 0
+//				if(esbRadioActiveTimer == 0)
+//				{
+//					// if there is no ongoing communication turn off the receiver to go into sleep mode... - request the next timeslot after a short delay.
+//					callbackReturnScheduleNext.params.request.p_next = &radioRequestOptionsStandBy;
+//				} 
+//				else
+//#endif
+//				{
+//					// if there is ongoing communication request the next timeslot as soon as possible...
+//					callbackReturnScheduleNext.params.request.p_next = &radioRequestOptions;
+//			
+//					if(rfMode != rfMode_normal)
+//					{
+//						radioRequestOptions.params.earliest.priority = NRF_RADIO_PRIORITY_HIGH;
+//					}
+//					else
+//					{
+//						radioRequestOptions.params.earliest.priority = NRF_RADIO_PRIORITY_NORMAL;
+//					};
+//				};
+//				// Schedule next timeslot
+//				return &callbackReturnScheduleNext;
+//			}
+//			break;
+//		
+//		case NRF_RADIO_CALLBACK_SIGNAL_TYPE_RADIO:
+//			// Call the esb IRQHandler
+//			RADIO_IRQHandler();
+//			break;
 
-		case NRF_RADIO_CALLBACK_SIGNAL_TYPE_EXTEND_FAILED:
-			// Don't do anything. Our timer will expire before timeslot ends
-			break;
+//		case NRF_RADIO_CALLBACK_SIGNAL_TYPE_EXTEND_FAILED:
+//			// Don't do anything. Our timer will expire before timeslot ends
+//			break;
 
-		case NRF_RADIO_CALLBACK_SIGNAL_TYPE_EXTEND_SUCCEEDED:
-			// Extension succeeded: update timer
-			NRF_TIMER0->TASKS_STOP         = 1;
-			NRF_TIMER0->EVENTS_COMPARE[0]  = 0;
-			NRF_TIMER0->EVENTS_COMPARE[1]  = 0;
-			NRF_TIMER0->CC[0]             += (TX_LEN_EXTENSION_US - 25);
-			NRF_TIMER0->CC[1]             += (TX_LEN_EXTENSION_US - 25);
-			NRF_TIMER0->CC[2]             += (TX_LEN_EXTENSION_US - 25);
-			NRF_TIMER0->TASKS_START        = 1;
+//		case NRF_RADIO_CALLBACK_SIGNAL_TYPE_EXTEND_SUCCEEDED:
+//			// Extension succeeded: update timer
+//			NRF_TIMER0->TASKS_STOP         = 1;
+//			NRF_TIMER0->EVENTS_COMPARE[0]  = 0;
+//			NRF_TIMER0->EVENTS_COMPARE[1]  = 0;
+//			NRF_TIMER0->CC[0]             += (TX_LEN_EXTENSION_US - 25);
+//			NRF_TIMER0->CC[1]             += (TX_LEN_EXTENSION_US - 25);
+//			NRF_TIMER0->CC[2]             += (TX_LEN_EXTENSION_US - 25);
+//			NRF_TIMER0->TASKS_START        = 1;
 
-			// Keep track of total length
-			m_total_timeslot_length += TX_LEN_EXTENSION_US;
+//			// Keep track of total length
+//			m_total_timeslot_length += TX_LEN_EXTENSION_US;
 
-#ifdef WDT_ON
-			watchdog_reset_timeslot();
-#endif
-			break;
-	};
+//#ifdef WDT_ON
+//			watchdog_reset_timeslot();
+//#endif
+//			break;
+//	};
 
-	// Fall-through return: return with no action request
-	return &callbackReturnNoAction;
-}
+//	// Fall-through return: return with no action request
+//	return &callbackReturnNoAction;
+//}
 
 /**@brief IRQHandler used for execution context management. 
   *        Any available handler can be used as we're not using the associated hardware.
