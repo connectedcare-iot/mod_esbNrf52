@@ -46,9 +46,9 @@
 #define BUTTON_MEMORY_MASK     key_getMemorySaveMask()  ///< @brief define for getting memory mask 
 #define BUTTON_TORCH_MASK      key_getTorchMask()    ///< @brief define for getting torch mask 
 #define BUTTON_TEACH_MASK_NR1  key_getTeachMask(0)   ///< @brief define for getting teach mask 1
-#ifdef  FEATURE_TEACH_TWO_DEVICES
+//#ifdef  FEATURE_TEACH_TWO_DEVICES
 #define BUTTON_TEACH_MASK_NR2  key_getTeachMask(1)   ///< @brief define for getting teach mask 2
-#endif
+//#endif
 #ifdef  _USE_TWO_KEYS_FOR_UBB
 #define BUTTOM_UBB_MASK        key_getUbbMask()        ///< @brief define for getting the ubb mask 
 #endif 

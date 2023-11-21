@@ -290,7 +290,7 @@ static bool saveAddressConfiguration(rf_communication_data_t* dataForStorage)
 	uint8_t dataBuffer[sizeof(rf_communication_data_t)];
 	memcpy((void*)dataBuffer, (void*)dataForStorage, sizeof(rf_communication_data_t));
 
-	rf_storage_set_rf_add_table(dataBuffer, sizeof(rf_communication_data_t));
+	rf_storage_set_rf_add_table(dataBuffer, sizeof(rf_communication_data_t), RF_STORAGE_ADDR_1_SEND);
 	#endif 
 	return false;
 }
@@ -310,7 +310,7 @@ static bool saveAddressConfiguration(rf_communication_data_t* dataForStorage)
 static bool loadAddressConfiguration(rf_communication_data_t* dataFromStorage)
 {
 	uint8_t dataBuffer[sizeof(rf_communication_data_t)];
-	rf_storage_get_rf_add_table(dataBuffer, sizeof(rf_communication_data_t));
+	rf_storage_get_rf_add_table(dataBuffer, sizeof(rf_communication_data_t), RF_STORAGE_ADDR_1_SEND);
 
 	memcpy((void*)dataFromStorage, (void*)dataBuffer, sizeof(rf_communication_data_t));
 
@@ -922,7 +922,7 @@ bool esb_teachModeHandler(void)
 			#endif 
 			}
 			led_control_halSetLedActiveBit(LED_BACKLIGHT_PIN_NUMBER);
-			esb_init();
+			esb_init_transiver();
 			teachStatus = TEACH_STATE_IDLE;
 			timeout = TEACH_TIMEOUT; 
 		}
@@ -946,7 +946,7 @@ bool esb_teachModeHandler(void)
  * @return none     
  * 
  ******************************************************************************/ 
-void esb_init(void)
+void esb_init_transiver(void)
 {
 	// Start clock
 	NRF_CLOCK->EVENTS_HFCLKSTARTED = 0;
@@ -1059,7 +1059,7 @@ void esb_init(void)
  * @return none     
  * 			
  ******************************************************************************/ 
-void esb_deinit(void)
+void esb_deinit_transiver(void)
 {
 	nrf_esb_disable();
 }

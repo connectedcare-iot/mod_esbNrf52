@@ -18,29 +18,9 @@
 #define	RF_WAKE_UP          0x0A
 #define	RF_STATUS           0x0B
 
-enum rfMode_t
-{
-	RF_MODE_NORMAL = 0,
-	RF_MODE_TEACH_TX = 1,
-	RF_MODE_TEACH_RX = 2,
-	RF_MODE_TEACH_CHANGE_CHANNEL = 3,
-	RF_MODE_TEACH_PENDING = 4,
-	RF_MODE_TX = 5
-};
-extern enum rfMode_t rfMode;
+void esb_resetEsb_receiver(void); 
 
-#define esbTeachmodeIsActive() (rfMode != rfMode_normal)
+uint32_t esb_init_receiver(bool start_tech_mode, uint32_t resetReason, bool bouds); 
 
-void esb_init(bool start_tech_mode);
-void esb_timer_10ms(void);
-void esb_handler(void);
-void esb_stop(void);
-void esb_sys_event_hanlder(uint32_t sys_evt);
-void esb_flash_feedback(uint_fast8_t interval, uint_fast8_t count);
-void esb_teachmode_stop(void);
-
-extern uint32_t esb_keyCode;
-
-extern member_type_t esbAddress;
 
 #endif 

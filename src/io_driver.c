@@ -13,7 +13,7 @@
 ******************************************************************************
 */
 
-//include s 
+
 
 #include <string.h>
 
@@ -38,6 +38,11 @@
 #include "led_control_api.h"
 
 #include "keys_hal_app.h"
+
+#include "ble_lib_main.h"
+
+#include "esb_cntrlReceiver.h"
+#include "esb_eventHandler.h"
 
 static void ioServiceTimer (void); 
 
@@ -243,14 +248,37 @@ static uint32_t _getButtonValue(void)
  * 
  ******************************************************************************/  
 
+#define TIMER_TEACH_CONTROL 40 
+
 static void _activateButtonBacklight(uint32_t buttonValueMask)
 {
-	if(esb_getTeachingLedState())
+	static uint8_t timer = TIMER_TEACH_CONTROL; 
+	if(getTeachReceiverState())
 	{
-		led_control_halClrLedActiveBit(LED_BACKLIGHT_PIN_NUMBER); 
+		timer--; 
+		led_control_halClrLedActiveBit(LED_BACKLIGHT_PIN_NUMBER);
+		if(timer == 0)
+		{
+			timer = TIMER_TEACH_CONTROL; 
+			led_control_halToogleLedActiveBit(LED_LED1_PIN_NUMBER);
+			led_control_halToogleLedActiveBit(LED_LED2_PIN_NUMBER);
+			led_control_halToogleLedActiveBit(LED_LED3_PIN_NUMBER);
+		}
+	}
+	else if(esb_getTeachingLedState())
+	{
+		led_control_halSetLedActiveBit(LED_LED1_PIN_NUMBER);
+		led_control_halSetLedActiveBit(LED_LED2_PIN_NUMBER);
+		led_control_halSetLedActiveBit(LED_LED3_PIN_NUMBER);
+		led_control_halSetLedActiveBit(LED_BACKLIGHT_PIN_NUMBER); 
 	}
 	else
 	{
+		led_control_halClrLedActiveBit(LED_LED1_PIN_NUMBER);
+		led_control_halClrLedActiveBit(LED_LED2_PIN_NUMBER);
+		led_control_halClrLedActiveBit(LED_LED3_PIN_NUMBER);
+		
+		
 		if((buttonValueMask != 0)
 		&& (_backlightSignal.startFlashBackligth == false))
 		{
@@ -284,9 +312,9 @@ static io_feature_t _checkIoFeatureTeaching(uint32_t buttonValueMask, uint8_t* t
 
 uint32_t teachingKeycodeArray[] = {
 		BUTTON_TEACH_MASK_NR1,
-#ifdef FEATURE_TEACH_TWO_DEVICES
+//#ifdef FEATURE_TEACH_TWO_DEVICES
 		BUTTON_TEACH_MASK_NR2 
-#endif
+//#endif
 	};
 	
 	for (teachingIndexToCheck = 0; teachingIndexToCheck < (sizeof(teachingKeycodeArray) / sizeof(teachingKeycodeArray[0])); ++teachingIndexToCheck)
@@ -544,7 +572,28 @@ bool io_checkButtons(void)
 	{
 		// TODO: Implement check for teaching Index
 		// esb_manageRfInterface(1);
-		esb_teachNewDevice(teachingDeviceNumber);
+		if(teachingDeviceNumber == 1) 
+		{
+			esb_teachNewDevice(teachingDeviceNumber);
+		}
+		else if(teachingDeviceNumber == 2) 
+		{
+			if(oldButtonValueMask != buttonValueMask)
+			{
+				// Restart teach mode
+				esb_deinit_transiver(); 
+				uint32_t errCode; 
+				
+				esb_resetEsb_receiver(); 
+				
+				errCode = esb_init_receiver(true, 0, false);
+//				APP_ERROR_CHECK(errCode);
+				
+				errCode = bleLib_restartTeachMode(true);
+				APP_ERROR_CHECK(errCode);
+			}
+		}
+		
 		led_control_halClrLedActiveBit(LED_BACKLIGHT_PIN_NUMBER);
 	}
 	// check if teaching was deactivated
