@@ -9,8 +9,12 @@
 #include "ble_lib_esb.h"
 
 #include "esb_cntrlReceiver.h"
-#include "esb_eventHandler.h"
 #include "esb_constants.h" 
+#include "esb_gateway_api.h"
+#include "app.h"
+
+
+
 #include "dp2.h"
 //#include "misc.h"
 
@@ -35,9 +39,9 @@ uint32_t esb_init_receiver(bool start_tech_mode, uint32_t resetReason, bool boud
 {
 	// Init BLE/ESB library
 	ble_lib_config_t const config = {
-		.eventHandler    = bleLibEventHandler,
+		.eventHandler    = app_bleLibEventHandler,
 		.keycodeHandler  = dataHandler_bleEsbKeycodeEventHandler,
-		.feedbackHandler = feedbackEventHandler,
+		.feedbackHandler = app_feedbackEventHandler,
 		.dataHandler     = dataHandler_bleEsbDataEventHandler,
 		.eraseBonds      = bouds,
 		.eraseDeviceName = bouds

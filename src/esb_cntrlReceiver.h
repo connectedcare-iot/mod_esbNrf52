@@ -4,7 +4,8 @@
  #ifndef __ESB_CONTROL_RECEIVER_H__
  #define __ESB_CONTROL_RECEIVER_H__
 
-#include "rf_member_manager.h" 
+#include <stdint.h>
+#include <stdbool.h>
 
 #define RF_MODULID          0x01  // Identifizierung
 #define RF_DATA             0x02  // Datenübertragung

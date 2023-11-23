@@ -47,7 +47,7 @@
 #define ESB_DEFAULT_ADDR_CHANNEL 4
 
 
-void esb_init_transiver(void);
+void esb_init_transiver(bool resetEsb);
 void esb_deinit_transiver(void);
 bool esb_teachModeHandler(void);
 
