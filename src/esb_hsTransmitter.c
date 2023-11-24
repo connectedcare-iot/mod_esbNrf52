@@ -40,6 +40,8 @@
 #include "nrf_esb.h"
 #include "led_control_api.h"
 
+#include "app.h"
+
 
 typedef struct
 {
@@ -1267,7 +1269,7 @@ static void esbEventHandler(nrf_esb_evt_t const * event)
 			if (_teachingLedActive == false)
 			{
 				#if !(defined (PROJECT_TOKEN_BUS_MODULE_ENABLED)) && !(defined (_USE_DO_TIMER_MODULE_FOR_ESB)) 
-//				led_conrol_halSetRfFeedbackLed(LED_COMMAND_ACTIVATE);
+				led_conrol_halSetRfFeedbackLed(LED_COMMAND_ACTIVATE);
 				#else
 				esb_send_led_event(LED_LED1_PIN_NUMBER, LED_COMMAND_ACTIVATE);
 				#endif 
@@ -1297,110 +1299,112 @@ static void esbEventHandler(nrf_esb_evt_t const * event)
 			}
 			
 			_esbFlags |= ESB_FLAG_DATA;
+		
+			app_setFedbackValues (&rxPayload, sizeof(nrf_esb_payload_t)); 
 			
-			for (uint8_t index = 0; index < NRF_ESB_MAX_PAYLOAD_LENGTH; index++)
-			{
-				_rxPayload[index] = rxPayload.data[index];
-			}
-			
-			if (_rxPayload[2] == RF_CMD_LED_STATUS)
-			{
-				uint32_t ledStatusBuffer = 0;
-				uint32_t ledMaskBuffer = 0;
-				
-				for (uint8_t index = 0; index < RF_SIZE_OF_LED_STATE; ++index)
-				{
-					ledStatusBuffer |= _rxPayload[index + RF_ESB_HEADER_LENGTH] << (index * LENGHT_OF_BYTE);
-					ledMaskBuffer   |= _rxPayload[index + RF_ESB_HEADER_LENGTH + RF_SIZE_OF_LED_STATE] << (index * LENGHT_OF_BYTE);
-				}
-			
-				if ((ledMaskBuffer & ledStatusBuffer & RF_CONTINIOUS_MODE) != 0)
-				{
-					_esbContiniousTimerIndex = RF_CONTINIOUS_TIMEOUT; 
-				}
+//			for (uint8_t index = 0; index < NRF_ESB_MAX_PAYLOAD_LENGTH; index++)
+//			{
+//				_rxPayload[index] = rxPayload.data[index];
+//			}
+//			
+//			if (_rxPayload[2] == RF_CMD_LED_STATUS)
+//			{
+//				uint32_t ledStatusBuffer = 0;
+//				uint32_t ledMaskBuffer = 0;
+//				
+//				for (uint8_t index = 0; index < RF_SIZE_OF_LED_STATE; ++index)
+//				{
+//					ledStatusBuffer |= _rxPayload[index + RF_ESB_HEADER_LENGTH] << (index * LENGHT_OF_BYTE);
+//					ledMaskBuffer   |= _rxPayload[index + RF_ESB_HEADER_LENGTH + RF_SIZE_OF_LED_STATE] << (index * LENGHT_OF_BYTE);
+//				}
+//			
+//				if ((ledMaskBuffer & ledStatusBuffer & RF_CONTINIOUS_MODE) != 0)
+//				{
+//					_esbContiniousTimerIndex = RF_CONTINIOUS_TIMEOUT; 
+//				}
 
-				if ((ledMaskBuffer & ledStatusBuffer & RF_SET_LED_ON_MODE) != 0)
-				{
-					_ledMemoryActive = true;
-				}
-				else
-				{
-				_esbContiniousTimerIndex = TIMER_INVALID_TIMER; 
-					_ledMemoryActive = false;
-				}
-			}
-			else
-			{
-				static uint8_t toggle = 0;
-				
-				if (_rxPayload[0] < 4)
-				{
-					break;
-				}
-				
-				uint32_t ledCode = 0;
-				ledCode = _rxPayload[6];
-				ledCode <<= 8;
-				ledCode |= _rxPayload[5];
-				ledCode <<= 8;
-				ledCode |= _rxPayload[4];
-				ledCode <<= 8;
-				ledCode |= _rxPayload[3];
-				
-				if (_rxPayload[2] == RF_CMD_LED_ON)
-				{
-					if ((ledCode & RF_CONTINIOUS_MODE) != 0)
-					{
-						_esbContiniousTimerIndex = RF_CONTINIOUS_TIMEOUT; 
-					}
-					
-					if((ledCode & RF_SET_LED_ON_MODE) != 0)
-					{
-						_ledMemoryActive = true;
-					}
-				}
-				else if(_rxPayload[2] == RF_CMD_LED_OFF)
-				{
-					if ((ledCode & RF_CONTINIOUS_MODE) != 0)
-					{
-						_ledMemoryActive = false;
-						_esbContiniousTimerIndex = TIMER_INVALID_TIMER; 
-					}
-				
-					if ((ledCode & RF_SET_LED_ON_MODE) != 0)
-					{
-						_ledMemoryActive = false;
-						_esbContiniousTimerIndex = TIMER_INVALID_TIMER; 
-					}
-				}
-				else if (_rxPayload[2] == RF_CMD_LED_TOGGLE)
-				{
-					if (toggle == 0)
-					{
-						_esbContiniousTimerIndex = RF_CONTINIOUS_TIMEOUT; 
-						toggle = 1;
-					}
-					else
-					{
-						_esbContiniousTimerIndex = TIMER_INVALID_TIMER; 
-						toggle = 0;
-					}
-				}
-				else if (_rxPayload[2] == RF_CMD_LED_AUTO)
-				{
-					_esbContiniousTimerIndex = TIMER_INVALID_TIMER; 
-					
-					if (_rxPayload[0] != 6)
-					{
-						break;
-					}
-					
-					if (ledCode == 0)
-					{
-						io_setFlashBacklight(_rxPayload[7], _rxPayload[8] << 1); 
-					}
-				}
-			}
+//				if ((ledMaskBuffer & ledStatusBuffer & RF_SET_LED_ON_MODE) != 0)
+//				{
+//					_ledMemoryActive = true;
+//				}
+//				else
+//				{
+//				_esbContiniousTimerIndex = TIMER_INVALID_TIMER; 
+//					_ledMemoryActive = false;
+//				}
+//			}
+//			else
+//			{
+//				static uint8_t toggle = 0;
+//				
+//				if (_rxPayload[0] < 4)
+//				{
+//					break;
+//				}
+//				
+//				uint32_t ledCode = 0;
+//				ledCode = _rxPayload[6];
+//				ledCode <<= 8;
+//				ledCode |= _rxPayload[5];
+//				ledCode <<= 8;
+//				ledCode |= _rxPayload[4];
+//				ledCode <<= 8;
+//				ledCode |= _rxPayload[3];
+//				
+//				if (_rxPayload[2] == RF_CMD_LED_ON)
+//				{
+//					if ((ledCode & RF_CONTINIOUS_MODE) != 0)
+//					{
+//						_esbContiniousTimerIndex = RF_CONTINIOUS_TIMEOUT; 
+//					}
+//					
+//					if((ledCode & RF_SET_LED_ON_MODE) != 0)
+//					{
+//						_ledMemoryActive = true;
+//					}
+//				}
+//				else if(_rxPayload[2] == RF_CMD_LED_OFF)
+//				{
+//					if ((ledCode & RF_CONTINIOUS_MODE) != 0)
+//					{
+//						_ledMemoryActive = false;
+//						_esbContiniousTimerIndex = TIMER_INVALID_TIMER; 
+//					}
+//				
+//					if ((ledCode & RF_SET_LED_ON_MODE) != 0)
+//					{
+//						_ledMemoryActive = false;
+//						_esbContiniousTimerIndex = TIMER_INVALID_TIMER; 
+//					}
+//				}
+//				else if (_rxPayload[2] == RF_CMD_LED_TOGGLE)
+//				{
+//					if (toggle == 0)
+//					{
+//						_esbContiniousTimerIndex = RF_CONTINIOUS_TIMEOUT; 
+//						toggle = 1;
+//					}
+//					else
+//					{
+//						_esbContiniousTimerIndex = TIMER_INVALID_TIMER; 
+//						toggle = 0;
+//					}
+//				}
+//				else if (_rxPayload[2] == RF_CMD_LED_AUTO)
+//				{
+//					_esbContiniousTimerIndex = TIMER_INVALID_TIMER; 
+//					
+//					if (_rxPayload[0] != 6)
+//					{
+//						break;
+//					}
+//					
+//					if (ledCode == 0)
+//					{
+//						io_setFlashBacklight(_rxPayload[7], _rxPayload[8] << 1); 
+//					}
+//				}
+//			}
 		} break;
 		
 		default:
