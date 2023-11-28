@@ -70,20 +70,7 @@ typedef union
 	uint8_t daten[sizeof(frame_t)];                   ///< @brief  rf esb daten 
 } rf_frame_t;
 
-typedef enum
-{
-	TEACH_STATE_IDLE = 0,                             ///< @brief  teach state idle
-	TEACH_STATE_START,                                ///< @brief  teach state start
-	TEACH_STATE_SEND_ID,                              ///< @brief  teach state send id 
-	TEACH_STATE_WAIT_ID,                              ///< @brief  teach state wait for id
-	TEACH_STATE_WAIT_ACK,                             ///< @brief  teach state wait for ack
-	TEACH_STATE_SEND_ADDRESS,                         ///< @brief  teach state send address
-	TEACH_STATE_WAIT_ADDRESS,                         ///< @brief  teach state wait for address
-	TEACH_STATE_SEND_CURR_ADDRESS,                    ///< @brief  teach state send current address
-	TEACH_STATE_WAIT_CURR_ADDRESS,                    ///< @brief  teach state wait for current address
-	TEACH_STATE_DONE,                                 ///< @brief  teach state send done 
-	TEACH_STATE_RESET,                                ///< @brief  teach state send reset 
-} teach_status_t;
+
 
 typedef enum
 {
@@ -512,7 +499,7 @@ bool esb_stopTeaching(void)
 #define TEACH_TIMEOUT     500
 #define TEACH_DELAY       500
 
-bool esb_teachModeHandler(void)
+uint8_t esb_teachModeHandler(void)
 {
 	static uint16_t delay = SYS_TICK_TIME_BASE_5MS * TEACH_DELAY; 
 	static uint8_t    pipeIndex = 0;
@@ -931,7 +918,9 @@ bool esb_teachModeHandler(void)
 		default:
 			break;
 	}
-	return teachStatus == TEACH_STATE_IDLE ? false : true;
+	
+	return (uint8_t)teachStatus; 
+	//return teachStatus == TEACH_STATE_IDLE ? false : true;
 }
 
 

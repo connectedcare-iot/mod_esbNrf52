@@ -45,11 +45,25 @@
 #define ESB_DEFAULT_ADDR         0x817e817e
 #define ESB_DEFAULT_ADDR_PREFIX  0x80
 #define ESB_DEFAULT_ADDR_CHANNEL 4
-
+ 
+typedef enum
+{
+	TEACH_STATE_IDLE = 0,                             ///< @brief  teach state idle
+	TEACH_STATE_START,                                ///< @brief  teach state start
+	TEACH_STATE_SEND_ID,                              ///< @brief  teach state send id 
+	TEACH_STATE_WAIT_ID,                              ///< @brief  teach state wait for id
+	TEACH_STATE_WAIT_ACK,                             ///< @brief  teach state wait for ack
+	TEACH_STATE_SEND_ADDRESS,                         ///< @brief  teach state send address
+	TEACH_STATE_WAIT_ADDRESS,                         ///< @brief  teach state wait for address
+	TEACH_STATE_SEND_CURR_ADDRESS,                    ///< @brief  teach state send current address
+	TEACH_STATE_WAIT_CURR_ADDRESS,                    ///< @brief  teach state wait for current address
+	TEACH_STATE_DONE,                                 ///< @brief  teach state send done 
+	TEACH_STATE_RESET,                                ///< @brief  teach state send reset 
+} teach_status_t;
 
 void esb_init_transiver(void);
 void esb_deinit_transiver(void);
-bool esb_teachModeHandler(void);
+uint8_t esb_teachModeHandler(void);
 
 bool esb_teachNewDevice(uint8_t newDeviceNumber);
 

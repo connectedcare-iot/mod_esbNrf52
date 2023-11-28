@@ -270,7 +270,7 @@ static void _activateButtonBacklight(uint32_t buttonValueMask)
 		led_control_halSetLedActiveBit(LED_LED1_PIN_NUMBER);
 		led_control_halSetLedActiveBit(LED_LED2_PIN_NUMBER);
 		led_control_halSetLedActiveBit(LED_LED3_PIN_NUMBER);
-		led_control_halSetLedActiveBit(LED_BACKLIGHT_PIN_NUMBER); 
+		led_control_halClrLedActiveBit(LED_BACKLIGHT_PIN_NUMBER); 
 	}
 	else
 	{
