@@ -1,8 +1,10 @@
-#ifndef __ESB_EVENT_HANDLER_H__
-#define __ESB_EVENT_HANDLER_H__
+#ifndef __ESB_GATEWAY_API
+#define __ESB_GATEWAY_API
+
+#include <stdbool.h>
+#include <stdint.h>
 
 #include "ble_lib_main.h"
-
 
 /** @brief Function to receive ble/esb events.
  *
@@ -46,5 +48,8 @@ void dataHandler_bleEsbDataEventHandler(ble_lib_comm_source_t const * sourcePtr,
                                         uint8_t               const * dataPtr,
                                         uint16_t              const   dataSize);
 
-bool getTeachReceiverState (void); 
+bool getTeachHandsetState (void); 
+
+
+
 #endif 

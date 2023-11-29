@@ -36,7 +36,7 @@
 #include "esb_constants.h"
 
 #include "led_event.h"
-#include "io_driver.h"
+#include "esb_io_driver.h"
 #include "nrf_esb.h"
 #include "led_control_api.h"
 
@@ -556,6 +556,7 @@ uint8_t esb_teachModeHandler(void)
 		} break;
 		
 		default:
+
 			break;
 	}
 	
@@ -909,7 +910,7 @@ uint8_t esb_teachModeHandler(void)
 			#endif 
 			}
 			led_control_halSetLedActiveBit(LED_BACKLIGHT_PIN_NUMBER);
-			esb_init_transiver();
+			esb_init_transiver(false);
 			teachStatus = TEACH_STATE_IDLE;
 			timeout = TEACH_TIMEOUT; 
 		}
@@ -935,7 +936,7 @@ uint8_t esb_teachModeHandler(void)
  * @return none     
  * 
  ******************************************************************************/ 
-void esb_init_transiver(void)
+void esb_init_transiver(bool resetDevice)
 {
 	// Start clock
 	NRF_CLOCK->EVENTS_HFCLKSTARTED = 0;
@@ -949,16 +950,18 @@ void esb_init_transiver(void)
 	nrf_drv_rng_config_t defaultConfiguration = NRF_DRV_RNG_DEFAULT_CONFIG;
 
 	uint32_t errCode = nrf_drv_rng_init(&defaultConfiguration);
-	#ifdef NRF52810_XXAA 
-	#ifdef _TEACH_RESET
-	if(errCode == NRF_ERROR_MODULE_ALREADY_INITIALIZED)
-		hal_systemReset(); 
-	#else
-	if(errCode != NRF_ERROR_MODULE_ALREADY_INITIALIZED)
-	#endif 
-	#endif 
-		APP_ERROR_CHECK(errCode);
 	
+	#ifdef NRF52810_XXAA
+	if(resetDevice)
+	{
+		if(errCode == NRF_ERROR_MODULE_ALREADY_INITIALIZED)
+			hal_systemReset(); 
+	}	
+	#endif 
+	
+	if(errCode != NRF_ERROR_MODULE_ALREADY_INITIALIZED)
+		APP_ERROR_CHECK(errCode);
+
 	#ifndef PROJECT_TOKEN_BUS_MODULE_ENABLED
 	loadAddressConfiguration(&_rfCommunicationData);
 	#endif 

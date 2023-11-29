@@ -61,7 +61,7 @@ typedef enum
 	TEACH_STATE_RESET,                                ///< @brief  teach state send reset 
 } teach_status_t;
 
-void esb_init_transiver(void);
+void esb_init_transiver(bool resetDevice);
 void esb_deinit_transiver(void);
 uint8_t esb_teachModeHandler(void);
 
