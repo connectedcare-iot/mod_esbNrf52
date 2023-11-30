@@ -40,21 +40,10 @@
 #include "nrf_esb.h"
 #include "led_control_api.h"
 
+#ifdef _APP_ESB_GATEWAY
+#include "app.h"
+#endif 
 
-typedef struct
-{
-	uint8_t base_address[RF_LENGTH_OF_ADDRESS];       ///< @brief  base adress
-	uint8_t pre_address;                              ///< @brief  pre adress
-} rf_address_t;
-
-typedef struct
-{
-	rf_address_t address;                             ///< @brief  rf adress 
-	uint8_t channel;                                  ///< @brief  rf channel 
-//#ifdef FEATURE_TEACH_TWO_DEVICES
-	uint8_t numberOfDevices;
-//#endif
-} rf_communication_data_t;
 
 typedef struct
 {
@@ -1268,6 +1257,29 @@ static void esbEventHandler(nrf_esb_evt_t const * event)
 		/**< Event triggered on RX received. */
 		case NRF_ESB_EVENT_RX_RECEIVED:
 		{
+			#ifdef _APP_ESB_GATEWAY  
+			nrf_esb_payload_t rxPayload = {0};
+			
+			if (nrf_esb_read_rx_payload(&rxPayload) != NRF_SUCCESS)
+			{
+				break;
+			}
+			
+			if (rxPayload.length == 0)
+			{
+				_esbFlags |= ESB_FLAG_ACK;
+				break;
+			}
+			
+			_esbFlags |= ESB_FLAG_DATA;
+		
+			for (uint8_t index = 0; index < NRF_ESB_MAX_PAYLOAD_LENGTH; index++)
+			{
+				_rxPayload[index] = rxPayload.data[index];
+			}
+			
+			app_setFedbackValues (&rxPayload, sizeof(nrf_esb_payload_t)); 
+			#else
 			nrf_esb_payload_t rxPayload = {0};
 			
 			if (nrf_esb_read_rx_payload(&rxPayload) != NRF_SUCCESS)
@@ -1385,7 +1397,8 @@ static void esbEventHandler(nrf_esb_evt_t const * event)
 						io_setFlashBacklight(_rxPayload[7], _rxPayload[8] << 1); 
 					}
 				}
-			}
+			} 
+			#endif
 		} break;
 		
 		default:

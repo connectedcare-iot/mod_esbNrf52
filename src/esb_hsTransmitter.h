@@ -15,6 +15,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include "esb_constants.h"
 
 #ifndef __ESB_DRIVER_H__
 #define __ESB_DRIVER_H__
@@ -60,6 +61,22 @@ typedef enum
 	TEACH_STATE_DONE,                                 ///< @brief  teach state send done 
 	TEACH_STATE_RESET,                                ///< @brief  teach state send reset 
 } teach_status_t;
+
+typedef struct
+{
+	uint8_t base_address[RF_LENGTH_OF_ADDRESS];       ///< @brief  base adress
+	uint8_t pre_address;                              ///< @brief  pre adress
+} rf_address_t;
+
+typedef struct
+{
+	rf_address_t address;                             ///< @brief  rf adress 
+	uint8_t channel;                                  ///< @brief  rf channel 
+//#ifdef FEATURE_TEACH_TWO_DEVICES
+	uint8_t numberOfDevices;
+//#endif
+} rf_communication_data_t;
+
 
 void esb_init_transiver(bool resetDevice);
 void esb_deinit_transiver(void);
