@@ -1060,10 +1060,10 @@ void esb_deinit_transiver(void)
 bool esb_transmitKeycode(uint32_t keycode)
 {
 	
-	if(keycode == 0x0020000)
-	{
-//		__nop(); 
-	}
+	if(keycode != 0x0000000)
+		led_control_halSetLedActiveBit(LED_TORCH_PIN_NUM); 
+	else
+		led_control_halClrLedActiveBit(LED_TORCH_PIN_NUM); 
 	
 	bool tranmissionPossible = false;
 	rf_frame_t frame;
