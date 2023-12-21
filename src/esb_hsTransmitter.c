@@ -19,8 +19,8 @@
 #include "nrf_drv_rng.h"
 #include "nrf_gpio.h"
 
+ #include "compiler_specific.h"
 
-#include "gpio_rf56_hal.h"
 #include "hardware_information.h"
 #if !(defined (PROJECT_TOKEN_BUS_MODULE_ENABLED)) && !(defined (_USE_DO_TIMER_MODULE_FOR_ESB)) 
 #include "esb_timer_driver.h"
@@ -35,10 +35,15 @@
 
 #include "esb_constants.h"
 
+#ifdef _NF56_HANDSET  
+#include "led_control_api.h"
 #include "led_event.h"
+#include "gpio_rf56_hal.h"
+#endif 
+
 #include "esb_io_driver.h"
 #include "nrf_esb.h"
-#include "led_control_api.h"
+
 
 #ifdef _APP_ESB_GATEWAY
 #include "app.h"
@@ -554,7 +559,9 @@ uint8_t esb_teachModeHandler(void)
 		if (_esbContiniousTimerIndex == 0) // timer_timeoutReached(_esbContiniousTimerIndex) == true)
 		{
 			_ledMemoryActive = false;
-			#if !(defined (PROJECT_TOKEN_BUS_MODULE_ENABLED)) && !(defined (_USE_DO_TIMER_MODULE_FOR_ESB)) 
+			#if (defined (_P1407_SNORE_SENSOR)) 
+			
+			#elif !(defined (PROJECT_TOKEN_BUS_MODULE_ENABLED)) && !(defined (_USE_DO_TIMER_MODULE_FOR_ESB) 
 			led_conrol_halSetTeachFeedbackLed(LED_COMMAND_DEACTIVATE);
 			#else
 			esb_send_led_event(LED_LED1_PIN_NUMBER, LED_COMMAND_DEACTIVATE);
@@ -569,6 +576,7 @@ uint8_t esb_teachModeHandler(void)
 //		nrf_gpio_pin_toggle(FCT_LED);
 		esb_send_led_event(LED_LED1_PIN_NUMBER, LED_COMMAND_TOGGLE);
 		_ledTimerIndex = ESB_LED_TIMER;
+		#elif (defined (_P1407_SNORE_SENSOR)) 
 		#else
 		led_conrol_halSetTeachFeedbackLed(LED_COMMAND_TOGGLE);
 		timer_resetTimer(_ledTimerIndex, 200);
@@ -594,7 +602,11 @@ uint8_t esb_teachModeHandler(void)
 			{
 				break;
 			}
+			
+			#if !(defined (_P1407_SNORE_SENSOR)) 
 			led_control_halClrLedActiveBit(LED_BACKLIGHT_PIN_NUMBER);
+			#endif 
+			
 			delay = SYS_TICK_TIME_BASE_5MS * TEACH_DELAY; 
 			timeout = TEACH_TIMEOUT; 
 			pipeIndex    = 0;
@@ -868,7 +880,9 @@ uint8_t esb_teachModeHandler(void)
 		{
 			if(delay == SYS_TICK_TIME_BASE_5MS * TEACH_DELAY)
 			{
-				#if !(defined (PROJECT_TOKEN_BUS_MODULE_ENABLED)) && !(defined (_USE_DO_TIMER_MODULE_FOR_ESB)) 
+				#if (defined (_P1407_SNORE_SENSOR)) 
+				
+				#elif !(defined (PROJECT_TOKEN_BUS_MODULE_ENABLED)) && !(defined (_USE_DO_TIMER_MODULE_FOR_ESB)) 
 				led_conrol_halSetTeachFeedbackLed(LED_COMMAND_ACTIVATE);
 				#else
 				esb_send_led_event(LED_LED1_PIN_NUMBER, LED_COMMAND_ACTIVATE);
@@ -891,14 +905,17 @@ uint8_t esb_teachModeHandler(void)
 		{
 			if(timeout != 0)
 			{
-			#if !(defined (PROJECT_TOKEN_BUS_MODULE_ENABLED)) && !(defined (_USE_DO_TIMER_MODULE_FOR_ESB)) 
+			#if (defined (_P1407_SNORE_SENSOR)) 
+			#elif !(defined (PROJECT_TOKEN_BUS_MODULE_ENABLED)) && !(defined (_USE_DO_TIMER_MODULE_FOR_ESB)) 
 				led_conrol_halSetTeachFeedbackLed(LED_COMMAND_DEACTIVATE);
 //				nrf_gpio_pin_write(FCT_LED,OFF);
 			#else
 				esb_send_led_event(LED_LED1_PIN_NUMBER, LED_COMMAND_DEACTIVATE);
 			#endif 
 			}
+			#if !(defined (_P1407_SNORE_SENSOR)) 
 			led_control_halSetLedActiveBit(LED_BACKLIGHT_PIN_NUMBER);
+			#endif 
 			esb_init_transiver(false);
 			teachStatus = TEACH_STATE_IDLE;
 			timeout = TEACH_TIMEOUT; 
@@ -1059,11 +1076,12 @@ void esb_deinit_transiver(void)
  ******************************************************************************/ 
 bool esb_transmitKeycode(uint32_t keycode)
 {
-	
+	#if !(defined (_P1407_SNORE_SENSOR)) 
 	if(keycode != 0x0000000)
 		led_control_halSetLedActiveBit(LED_TORCH_PIN_NUM); 
 	else
 		led_control_halClrLedActiveBit(LED_TORCH_PIN_NUM); 
+	#endif 
 	
 	bool tranmissionPossible = false;
 	rf_frame_t frame;
