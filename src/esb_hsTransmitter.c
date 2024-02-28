@@ -25,6 +25,7 @@
 #if !(defined (PROJECT_TOKEN_BUS_MODULE_ENABLED)) && !(defined (_USE_DO_TIMER_MODULE_FOR_ESB)) 
 #include "esb_timer_driver.h"
 #include "rf_storage.h"
+#include "memory_hal_api.h"
 #else
 #include "event_dispatcher.h" 
 #include "key_event.h"
@@ -271,7 +272,7 @@ static bool saveAddressConfiguration(rf_communication_data_t* dataForStorage)
 	uint8_t dataBuffer[sizeof(rf_communication_data_t)];
 	memcpy((void*)dataBuffer, (void*)dataForStorage, sizeof(rf_communication_data_t));
 
-	rf_storage_set_rf_add_table(dataBuffer, sizeof(rf_communication_data_t), RF_STORAGE_ADDR_1_SEND);
+	perstore_saveDataToMemory(dataBuffer, sizeof(rf_communication_data_t), RF_STORAGE_ADDR_1_SEND);
 	#endif 
 	return false;
 }
@@ -291,7 +292,7 @@ static bool saveAddressConfiguration(rf_communication_data_t* dataForStorage)
 static bool loadAddressConfiguration(rf_communication_data_t* dataFromStorage)
 {
 	uint8_t dataBuffer[sizeof(rf_communication_data_t)];
-	rf_storage_get_rf_add_table(dataBuffer, sizeof(rf_communication_data_t), RF_STORAGE_ADDR_1_SEND);
+	perstore_readDataFromMemory(dataBuffer, sizeof(rf_communication_data_t), RF_STORAGE_ADDR_1_SEND);
 
 	memcpy((void*)dataFromStorage, (void*)dataBuffer, sizeof(rf_communication_data_t));
 
