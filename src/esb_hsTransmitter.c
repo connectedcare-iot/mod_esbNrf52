@@ -272,7 +272,7 @@ static bool saveAddressConfiguration(rf_communication_data_t* dataForStorage)
 	uint8_t dataBuffer[sizeof(rf_communication_data_t)];
 	memcpy((void*)dataBuffer, (void*)dataForStorage, sizeof(rf_communication_data_t));
 
-	perstore_saveDataToMemory(dataBuffer, sizeof(rf_communication_data_t), RF_STORAGE_ADDR_1_SEND);
+  APP_ERROR_CHECK	(perstore_saveDataToMemory(dataBuffer, sizeof(rf_communication_data_t), RF_STORAGE_ADDR_1_SEND));
 	#endif 
 	return false;
 }
@@ -292,7 +292,7 @@ static bool saveAddressConfiguration(rf_communication_data_t* dataForStorage)
 static bool loadAddressConfiguration(rf_communication_data_t* dataFromStorage)
 {
 	uint8_t dataBuffer[sizeof(rf_communication_data_t)];
-	perstore_readDataFromMemory(dataBuffer, sizeof(rf_communication_data_t), RF_STORAGE_ADDR_1_SEND);
+	APP_ERROR_CHECK	(perstore_readDataFromMemory(dataBuffer, sizeof(rf_communication_data_t), RF_STORAGE_ADDR_1_SEND));
 
 	memcpy((void*)dataFromStorage, (void*)dataBuffer, sizeof(rf_communication_data_t));
 
