@@ -136,6 +136,8 @@ static uint32_t _esbContiniousTimerIndex = TIMER_INVALID_TIMER;                 
 static uint32_t _esbWakeupTimerIndex = TIMER_INVALID_TIMER;                         ///< @brief  esb wakeup timer 
 static uint32_t _ledTimerIndex = TIMER_INVALID_TIMER;                               ///< @brief  led timer 
 
+static teach_status_t _teachStatus = TEACH_STATE_IDLE;
+
 #define RF_PARTNER_AWAKE_TIEMOUT           1000    ///< @brief  communication timeout value
 #define RF_CONTINIOUS_TIMEOUT              3000    ///< @brief  continious timeout value 
 #endif 
@@ -373,15 +375,20 @@ static uint8_t generateRandomByte(void)
  *
  * @return true when done     
  * 
- ******************************************************************************/ 
+ ******************************************************************************/     
+uint32_t rc; 
 static bool sendRfFrame(uint32_t pipe, rf_frame_t* p_frame, uint8_t ack, bool forceFlush)
 {
 	static uint8_t txCount = 0;
 
+	
+	
 	if (forceFlush == true)
 	{
-		nrf_esb_flush_tx();
-		nrf_esb_flush_rx();
+		rc = nrf_esb_flush_tx();
+//		APP_ERROR_CHECK(rc); 
+		rc = nrf_esb_flush_rx();
+//		APP_ERROR_CHECK(rc); 
 	}
 
 	p_frame->frame.sequenz = txCount;
@@ -394,10 +401,13 @@ static bool sendRfFrame(uint32_t pipe, rf_frame_t* p_frame, uint8_t ack, bool fo
 	};
 	memcpy(&payload.data, p_frame->daten, (p_frame->frame.length) + RF_ESB_HEADER_LENGTH);
 	
-	if (nrf_esb_write_payload(&payload)== NRF_SUCCESS)
+	rc = nrf_esb_write_payload(&payload); // == NRF_SUCCESS
+	
+	if (rc == NRF_SUCCESS)
 	{
 		txCount++;
-		nrf_esb_start_tx();
+		rc = nrf_esb_start_tx();
+//		APP_ERROR_CHECK(rc);
 		return true;
 	}
 	return false;
@@ -503,7 +513,7 @@ uint8_t esb_teachModeHandler(void)
 
 	static rf_address_t   newRfAddress;
 	static uint8_t        newRfChannel;
-	static teach_status_t teachStatus = TEACH_STATE_IDLE;
+//	static teach_status_t _teachStatus = TEACH_STATE_IDLE;
 
 	static uint32_t       timeout = TEACH_TIMEOUT; 
 	
@@ -529,17 +539,17 @@ uint8_t esb_teachModeHandler(void)
 		
 		case TEACH_REQUEST_NEW_DEVICE:
 		{
-			if (teachStatus == TEACH_STATE_IDLE)
+			if (_teachStatus == TEACH_STATE_IDLE)
 			{
 				_requestBeeingHandled = TEACH_REQUEST_NO_REQUEST;
-				teachStatus           = TEACH_STATE_START;
+				_teachStatus           = TEACH_STATE_START;
 				_teachingLedActive    = true;
 			}
 		} break;
 			
 		case TEACH_REQUEST_STOP_TEACHING:
 		{
-			teachStatus           = TEACH_STATE_RESET;
+			_teachStatus           = TEACH_STATE_RESET;
 			_teachingLedActive    = false;
 			_requestBeeingHandled = TEACH_REQUEST_NO_REQUEST;
 		} break;
@@ -571,7 +581,7 @@ uint8_t esb_teachModeHandler(void)
 	}
 	else if ((_ledTimerIndex == 0) &&
 	         (_teachingLedActive == true) &&
-	         (teachStatus != TEACH_STATE_IDLE))
+	         (_teachStatus != TEACH_STATE_IDLE))
 	{
 		#ifdef _USE_DO_TIMER_MODULE_FOR_ESB
 //		nrf_gpio_pin_toggle(FCT_LED);
@@ -592,7 +602,7 @@ uint8_t esb_teachModeHandler(void)
 		#endif 
 	}
 	
-	switch(teachStatus)
+	switch(_teachStatus)
 	{
 		case TEACH_STATE_IDLE:
 			break;
@@ -634,7 +644,7 @@ uint8_t esb_teachModeHandler(void)
 			errCode = nrf_esb_enable_pipes(1 << _pipeArray[pipeIndex]);
 			APP_ERROR_CHECK(errCode);
 
-			teachStatus = TEACH_STATE_SEND_ID;
+			_teachStatus = TEACH_STATE_SEND_ID;
 		} break;
 			
 		case TEACH_STATE_SEND_ID:
@@ -649,7 +659,7 @@ uint8_t esb_teachModeHandler(void)
 
 			if (sendRfFrame(_pipeArray[pipeIndex], &frame, 1, true) == true)
 			{
-				teachStatus = TEACH_STATE_WAIT_ACK;
+				_teachStatus = TEACH_STATE_WAIT_ACK;
 			}
 		} break;
 
@@ -671,7 +681,7 @@ uint8_t esb_teachModeHandler(void)
 				errCode = nrf_esb_start_rx();
 				APP_ERROR_CHECK(errCode);
 				timeout = TEACH_TIMEOUT; 
-				teachStatus = TEACH_STATE_WAIT_ID;
+				_teachStatus = TEACH_STATE_WAIT_ID;
 				break;
 			}
 			
@@ -682,7 +692,7 @@ uint8_t esb_teachModeHandler(void)
 				if (_rxPayload[2] == RF_CMD_MODULID)
 				{
 					(void)nrf_esb_stop_rx();
-					teachStatus   = TEACH_STATE_SEND_ADDRESS;
+					_teachStatus   = TEACH_STATE_SEND_ADDRESS;
 					_rxPayload[2] = 0xFF;
 					break;
 				}
@@ -711,7 +721,7 @@ uint8_t esb_teachModeHandler(void)
 					
 					channelIndex = RF_MIN_CHANNEL_NUMBER;
 				}
-				teachStatus = TEACH_STATE_SEND_ID;
+				_teachStatus = TEACH_STATE_SEND_ID;
 				
 				if(timeout == 0)
 					esb_stopTeaching();  
@@ -732,7 +742,7 @@ uint8_t esb_teachModeHandler(void)
 					errCode = nrf_esb_stop_rx();
 					APP_ERROR_CHECK(errCode);
 
-					teachStatus = TEACH_STATE_SEND_ADDRESS;
+					_teachStatus = TEACH_STATE_SEND_ADDRESS;
 				}
 			}
 			
@@ -777,7 +787,7 @@ uint8_t esb_teachModeHandler(void)
 			
 			if (sendRfFrame(_pipeArray[pipeIndex], &frame, 1, true) == true)
 			{
-				teachStatus = TEACH_STATE_WAIT_ADDRESS;
+				_teachStatus = TEACH_STATE_WAIT_ADDRESS;
 			}
 		} break;
 			
@@ -786,14 +796,14 @@ uint8_t esb_teachModeHandler(void)
 			if ((_esbFlags & ESB_FLAG_ACK) != 0)
 			{
 				_esbFlags &= ~ESB_FLAG_ACK;
-				teachStatus = TEACH_STATE_SEND_CURR_ADDRESS;
+				_teachStatus = TEACH_STATE_SEND_CURR_ADDRESS;
 				break;
 			}
 			
 			if ((_esbFlags & ESB_FLAG_NACK) != 0)
 			{
 				_esbFlags &= ~ESB_FLAG_NACK;
-				teachStatus = TEACH_STATE_SEND_ADDRESS;
+				_teachStatus = TEACH_STATE_SEND_ADDRESS;
 			}
 		} break;
 			
@@ -807,7 +817,7 @@ uint8_t esb_teachModeHandler(void)
 
 			if (sendRfFrame(_pipeArray[pipeIndex], &frame, 1, true) == true)
 			{
-				teachStatus = TEACH_STATE_WAIT_CURR_ADDRESS;
+				_teachStatus = TEACH_STATE_WAIT_CURR_ADDRESS;
 			}
 		} break;
 			
@@ -866,14 +876,14 @@ uint8_t esb_teachModeHandler(void)
 				errCode = nrf_esb_set_rf_channel((uint32_t)newRfChannel);
 				APP_ERROR_CHECK(errCode);
 
-				teachStatus = TEACH_STATE_DONE;
+				_teachStatus = TEACH_STATE_DONE;
 				break;
 			}
 			
 			if ((_esbFlags & ESB_FLAG_NACK) != 0)
 			{
 				_esbFlags &= ~ESB_FLAG_NACK;
-				teachStatus = TEACH_STATE_SEND_CURR_ADDRESS;
+				_teachStatus = TEACH_STATE_SEND_CURR_ADDRESS;
 			}
 		} break;
 			
@@ -895,7 +905,7 @@ uint8_t esb_teachModeHandler(void)
 				delay--;
 			else
 			{
-				teachStatus = TEACH_STATE_IDLE;
+				_teachStatus = TEACH_STATE_IDLE;
 				_useDefaultAddress = false; 
 
 				_communicationPartnerAwake = true; 
@@ -918,7 +928,7 @@ uint8_t esb_teachModeHandler(void)
 			led_control_halSetLedActiveBit(LED_BACKLIGHT_PIN_NUMBER);
 			#endif 
 			esb_init_transiver(false);
-			teachStatus = TEACH_STATE_IDLE;
+			_teachStatus = TEACH_STATE_IDLE;
 			timeout = TEACH_TIMEOUT; 
 		}
 		break;
@@ -927,8 +937,8 @@ uint8_t esb_teachModeHandler(void)
 			break;
 	}
 	
-	return (uint8_t)teachStatus; 
-	//return teachStatus == TEACH_STATE_IDLE ? false : true;
+	return (uint8_t)_teachStatus; 
+	//return _teachStatus == TEACH_STATE_IDLE ? false : true;
 }
 
 
@@ -1075,6 +1085,9 @@ void esb_deinit_transiver(void)
  * @return true when done 
  * 
  ******************************************************************************/ 
+
+uint32_t errorCnt = 0; 
+
 bool esb_transmitKeycode(uint32_t keycode)
 {
 	#if !(defined (_P1407_SNORE_SENSOR)) 
@@ -1118,6 +1131,9 @@ bool esb_transmitKeycode(uint32_t keycode)
 	}
 	_esbWakeupTimerIndex = RF_PARTNER_AWAKE_TIEMOUT;
 
+	if(!tranmissionPossible)
+		errorCnt++; 
+	
 	return tranmissionPossible;
 }
 
@@ -1245,6 +1261,9 @@ bool esb_checkContiniousMode(void)
  ******************************************************************************/ 
 static void esbEventHandler(nrf_esb_evt_t const * event)
 {
+	if(_teachStatus == TEACH_STATE_IDLE)
+		_esbFlags = 0; 
+	
 	switch(event->evt_id)
 	{
 		/**< Event triggered on TX success. */
@@ -1428,5 +1447,10 @@ static void esbEventHandler(nrf_esb_evt_t const * event)
 bool esb_getTeachingLedState (void)
 {
 	return _teachingLedActive; 
+}
+
+uint8_t esb_getEsbFlags (void)
+{
+	return _esbFlags; 
 }
 

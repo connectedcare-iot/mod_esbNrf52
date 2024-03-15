@@ -94,5 +94,5 @@ bool esb_checkContiniousMode(void);
 void esb_wakeUpControls(void);
 
 bool esb_getTeachingLedState (void); 
-
+uint8_t esb_getEsbFlags (void); 
 #endif // __ESB_DRIVER_H__
